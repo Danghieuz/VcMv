@@ -8,66 +8,55 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
 
-# 1. Cấu hình Chrome
+# 1. Cấu hình Tối ưu tốc độ
 chrome_options = Options()
-chrome_options.add_experimental_option("detach", True)
+# Nếu muốn chạy ẩn (không hiện cửa sổ Chrome) để cực nhanh, hãy bỏ dấu # dòng dưới:
+# chrome_options.add_argument("--headless") 
+
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+
+# QUAN TRỌNG: Sửa đường dẫn Profile của bạn vào đây để tự Login
+path_to_user_data = r"C:\Users\Tên_Máy\AppData\Local\Google\Chrome\User Data" 
+chrome_options.add_argument(f"--user-data-dir={path_to_user_data}")
+
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
-# 2. Các hàm tạo code riêng biệt để không bị lẫn
 def get_25_chars():
-    # Tạo kiểu: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
     chars = string.ascii_uppercase + string.digits
-    parts = ["".join(random.choice(chars) for _ in range(5)) for _ in range(5)]
-    return "-".join(parts)
+    # Tạo mã 25 ký tự siêu tốc
+    return "-".join(["".join(random.choices(chars, k=5)) for _ in range(5)])
 
-def get_v_25_chars():
-    # Tạo kiểu: V-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
-    chars = string.ascii_uppercase + string.digits
-    parts = ["".join(random.choice(chars) for _ in range(5)) for _ in range(5)]
-    return "V-" + "-".join(parts)
-
-def get_10_digits():
-    # Tạo kiểu: 1234567890 (Chỉ số)
-    return "".join(random.choice(string.digits) for _ in range(10))
-
-# 3. Bắt đầu chạy
+# Vào thẳng trang nhập code
 driver.get("https://www.minecraft.net/en-us/redeem")
-print("--- HÃY ĐĂNG NHẬP RỒI QUAY LẠI ĐÂY ---")
-input("Sau khi đăng nhập xong, nhấn Enter để bắt đầu...")
+
+# Đợi 2 giây cho trang load lần đầu
+time.sleep(2)
+
+print("--- ĐANG BẮT ĐẦU VÃ CODE TỐC ĐỘ CAO ---")
 
 while True:
     try:
-        # Chọn ngẫu nhiên 1 trong 3 loại code
-        loai = random.randint(1, 3)
+        code = get_25_chars()
         
-        if loai == 1:
-            code_fake = get_25_chars()
-            print(f"[CHẾ ĐỘ 1] Thử code 25 ký tự: {code_fake}")
-        elif loai == 2:
-            code_fake = get_v_25_chars()
-            print(f"[CHẾ ĐỘ 2] Thử code V-25 ký tự: {code_fake}")
-        else:
-            code_fake = get_10_digits()
-            print(f"[CHẾ ĐỘ 3] Thử code 10 số: {code_fake}")
+        # Tìm ô nhập (Dùng Xpath ngắn nhất để tăng tốc)
+        input_field = driver.find_element(By.CSS_SELECTOR, "input[id*='code']")
+        
+        # Xóa và nhập cực nhanh
+        input_field.send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
+        input_field.send_keys(code)
+        
+        # Click nút Submit
+        driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        
+        print(f"Sent: {code}")
 
-        # Tìm ô nhập bằng Xpath xịn (tìm theo ID hoặc Placeholder)
-        # Minecraft thường dùng ID 'redeem-code-input'
-        input_field = driver.find_element(By.XPATH, "//input[contains(@id, 'code') or @type='text']")
+        # Tốc độ phản hồi của Server Microsoft khoảng 1-2s. 
+        # Để dưới 1s dễ bị "Access Denied" (Bị chặn IP tạm thời)
+        time.sleep(1.5) 
         
-        # Xóa sạch ô cũ trước khi nhập
-        input_field.send_keys(Keys.CONTROL + 'a')
-        input_field.send_keys(Keys.BACKSPACE)
-        
-        # Nhập code mới
-        input_field.send_keys(code_fake)
-        
-        # Tìm và nhấn nút Submit (thường là nút có type='submit')
-        submit_btn = driver.find_element(By.XPATH, "//button[@type='submit']")
-        submit_btn.click()
-        
-        # Nghỉ một lát để web load kết quả (Quan trọng: Đừng để nhanh quá sẽ bị lỗi)
-        time.sleep(5) 
-        
-    except Exception as e:
-        print(f"Lỗi: {e}. Đang thử lại sau 3 giây...")
-        time.sleep(3)
+    except Exception:
+        # Nếu lỗi (do load chậm) thì reload lại trang và tiếp tục
+        driver.refresh()
+        time.sleep(2)
