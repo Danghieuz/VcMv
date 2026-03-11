@@ -8,55 +8,52 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
 
-# 1. Cấu hình Tối ưu tốc độ
+# --- CẤU HÌNH SIÊU TỐC ---
 chrome_options = Options()
-# Nếu muốn chạy ẩn (không hiện cửa sổ Chrome) để cực nhanh, hãy bỏ dấu # dòng dưới:
-# chrome_options.add_argument("--headless") 
-
+chrome_options.add_argument("--headless") # Chạy ẩn hoàn toàn (không hiện cửa sổ)
 chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--blink-settings=imagesEnabled=false") # Chặn tải ảnh để load web cực nhanh
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 
-# QUAN TRỌNG: Sửa đường dẫn Profile của bạn vào đây để tự Login
+# Profile để bỏ qua bước đăng nhập
 path_to_user_data = r"C:\Users\Tên_Máy\AppData\Local\Google\Chrome\User Data" 
 chrome_options.add_argument(f"--user-data-dir={path_to_user_data}")
 
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
-def get_25_chars():
+def get_fast_code():
+    # Dùng choices nhanh hơn nhiều so với vòng lặp
     chars = string.ascii_uppercase + string.digits
-    # Tạo mã 25 ký tự siêu tốc
     return "-".join(["".join(random.choices(chars, k=5)) for _ in range(5)])
 
-# Vào thẳng trang nhập code
 driver.get("https://www.minecraft.net/en-us/redeem")
+time.sleep(2) # Chỉ đợi load trang lần đầu
 
-# Đợi 2 giây cho trang load lần đầu
-time.sleep(2)
-
-print("--- ĐANG BẮT ĐẦU VÃ CODE TỐC ĐỘ CAO ---")
+print("🚀 ĐANG CHẠY CHẾ ĐỘ TURBO (ẨN DANH)...")
 
 while True:
     try:
-        code = get_25_chars()
+        start_time = time.time() # Tính thời gian mỗi lượt
         
-        # Tìm ô nhập (Dùng Xpath ngắn nhất để tăng tốc)
-        input_field = driver.find_element(By.CSS_SELECTOR, "input[id*='code']")
+        code = get_fast_code()
         
-        # Xóa và nhập cực nhanh
-        input_field.send_keys(Keys.CONTROL + 'a', Keys.BACKSPACE)
-        input_field.send_keys(code)
+        # Dùng JavaScript để nhập code (Nhanh hơn send_keys thông thường)
+        input_el = driver.find_element(By.CSS_SELECTOR, "input[id*='code']")
+        driver.execute_script("arguments[0].value = '';", input_el) # Xóa nhanh
+        input_el.send_keys(code)
         
-        # Click nút Submit
-        driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        # Click bằng JavaScript (Bỏ qua việc chờ đợi hoạt họa của nút)
+        submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        driver.execute_script("arguments[0].click();", submit_btn)
         
-        print(f"Sent: {code}")
+        end_time = time.time()
+        print(f"✅ Sent: {code} | Speed: {round(end_time - start_time, 2)}s")
 
-        # Tốc độ phản hồi của Server Microsoft khoảng 1-2s. 
-        # Để dưới 1s dễ bị "Access Denied" (Bị chặn IP tạm thời)
-        time.sleep(1.5) 
+        # Microsoft có cơ chế chống spam. Nếu để 0s sẽ bị Block ngay.
+        # 0.8s - 1.2s là giới hạn chịu đựng của Server.
+        time.sleep(0.8) 
         
     except Exception:
-        # Nếu lỗi (do load chậm) thì reload lại trang và tiếp tục
         driver.refresh()
-        time.sleep(2)
+        time.sleep(1)
